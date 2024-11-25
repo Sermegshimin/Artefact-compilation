@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+	
+	<string id="ui_mcm_artefact_variationizer_title">
+		<text>Artefact Variationizer</text>
+	</string>
+	<string id="ui_mcm_menu_artefact_variationizer">
+		<text>Artefact Variations</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_debug_mode">
+		<text>Debug Mode</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_generate">
+		<text>Generate variations</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_generate_desc">
+		<text>You must be in game to use this option! \n By clicking this option and returning to the game, new artefact variations will be generated and saved into file. After successful save the game will be automatically reloaded after 3 seconds to apply those changes. The artefacts that you had already in the inventory will be randomized as well. You can use this option to generate variations for any mod that affects stats of artefacts</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_delete_artys">
+		<text>Delete variation artefacts</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_delete_artys_desc">
+		<text>This will delete any variation artefacts from the zone. This option is intended for safe removal of the mod</text>
+	</string>
+	
+	
+</string_table>

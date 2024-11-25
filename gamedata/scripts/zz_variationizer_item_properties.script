@@ -1,0 +1,53 @@
+function IsAttachmentOrUnknownArtefact(obj, sec)
+    sec = sec or obj:section()
+    return SYS_GetParam(0, sec, "kind", "") == "i_attach" or string.find(sec, "_unknown")
+end
+
+local gc = game.translate_string
+
+local clr_g  = "%c[d_green]"
+local clr_o  = "%c[d_orange]"
+local clr_b2 = "%c[0, 0, 148, 255]"
+local clr_p  = "%c[d_purple]"
+local clr_w  = "%c[0, 168, 168, 168]"
+
+local item_name = ui_item.item_name
+ui_item.item_name = function(obj, str)
+	local str = item_name(obj, str)
+	if not (artefact_variationizer_152.savedArtefacts[obj:name()] or (IsArtefact(obj) and not IsAttachmentOrUnknownArtefact(obj))) then
+		return str
+	end
+
+	local tier = artefact_variationizer_152.savedArtefacts[obj:name()] and artefact_variationizer_152.savedArtefacts[obj:name()].tier or 1
+	local s = "st_variationizer_tier" .. tier
+	local translation = gc(s)
+
+	str = str .. " (" .. translation .. ")"
+	return str
+end
+
+local build_desc_header = ui_item.build_desc_header
+ui_item.build_desc_header = function(obj, sec, str)
+	local str = build_desc_header(obj, sec, str)
+	if not (artefact_variationizer_152.savedArtefacts[obj:name()] or (IsArtefact(obj) and not IsAttachmentOrUnknownArtefact(obj))) then
+		return str
+	end
+
+	local tier = artefact_variationizer_152.savedArtefacts[obj:name()] and artefact_variationizer_152.savedArtefacts[obj:name()].tier or 1
+	local s = "st_variationizer_tier" .. tier
+	local translation = gc(s)
+
+	if tier == 1 then
+		str = " • " .. translation .. " \\n \\n" .. str
+	elseif tier == 2 then
+		str = clr_g .. " • " .. translation .. " \\n \\n" .. clr_w .. str
+	elseif tier == 3 then
+		str = clr_b2 .. " • " .. translation .. " \\n \\n" .. clr_w .. str
+	elseif tier == 4 then
+		str = clr_p .. " • " .. translation .. " \\n \\n" .. clr_w .. str
+	elseif tier == 5 then
+		str = clr_o .. " • " .. translation .. " \\n \\n" .. clr_w .. str
+	end
+
+	return str
+end

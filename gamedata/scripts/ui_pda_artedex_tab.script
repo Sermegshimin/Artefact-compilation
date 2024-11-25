@@ -1,0 +1,159 @@
+unlocked_artefacts = {}
+locked_artefacts = {"af_acid_circler", "af_amber_needle", "af_aquamarine", "af_blood_splatter", "af_blood_vessels",
+                   "af_blurp", "af_bony", "af_bracelet2", "af_clam", "af_clever", "af_coal", "af_collapse", "af_concrete_chunk",
+                   "af_electro_pulse", "af_grass_kopchik", "af_hell_horns", "af_ice_ring", "af_ice_rose", "af_icicle", "af_lava_prisoska",
+                   "af_lungs", "af_moss_tree", "af_nerve_clot", "af_nest", "af_provoloka",
+                   "af_reed", "af_ruby", "af_shipuchka", "af_spike", "af_tornado", "af_toxic_net",
+                   "af_valve", "af_vertebra", "af_vozyk", "af_zavitushka", "af_voron", "af_uzel",
+                   "af_stone", "af_spiral", "af_spinner", "af_sluda", "af_sliznak", "af_sliz", "af_shipastik",
+                   "af_rombik", "af_pruzina", "af_plenka", "af_piramidka", "af_petlya",  "af_octopus",
+                   "af_needles", "af_naperstok", "af_myasorubka", "af_meteor", "af_kriskol",
+                   "af_koluchka", "af_kaplya", "af_izumrud", "af_goldlomot", "af_globus",
+                   "af_electro_thorn", "af_dikobraz", "af_caterpillar", "af_cactus",
+                   "af_sopli", "af_sand_battery", "af_black_cristall", "af_asteroid",
+		   "af_itcher", "af_pin", "af_cristall", "af_fireball", "af_blood", "af_mincer_meat", "af_bracelet",
+                   "af_baloon", "af_electra_sparkler", "af_sponge", "af_ring", "af_electra_flash", "af_cristall_flower",
+                   "af_lobster_eyes", "af_electra_moonlight", "af_black_spray", "af_medusa", "af_vyvert", "af_empty",
+                   "af_full_empty", "af_night_star", "af_gravi", "af_gold_fish", "af_dummy_glassbeads", "af_eye",
+                   "af_fire", "af_dummy_battery", "af_dummy_dummy", "af_ice", "af_soul", "af_fuzz_kolobok", "af_glass",
+                   "af_black", "af_dragon_eye", "af_fire_loop", "af_ball", "af_fonar", "af_tapeworm", "af_moh", "af_serofim",
+                   "af_elektron", "af_kogot", "af_generator", "af_black_angel", "af_grapes", "af_star_phantom",
+                   "af_medallion", "af_peas", "af_kislushka", "af_zhelch", "af_sandstone", "af_fountain", "af_spaika", "af_signet",
+                   "af_repei", "af_bat", "af_sun", "af_ear", "af_chelust", "af_atom", "af_lighthouse", "af_cell", "af_cocoon"}
+local column_limit = 5
+local rows_limit = 25
+
+local SINGLETON = nil
+function get_ui()
+	SINGLETON = SINGLETON or pda_artedex_tab()
+	SINGLETON:Reset()
+	return SINGLETON
+end
+class "pda_artedex_tab" (CUIScriptWnd)
+
+function pda_artedex_tab:__init() super()
+	-- Interface init.
+	
+	self.artefacts = {}
+	self:InitControls()
+end
+
+function actor_on_update(actor)
+	local check = (get_console_cmd(1,"g_3d_pda") and db.actor:active_slot() == 14 or ActorMenu.get_pda_menu():IsShown())
+
+	if not check then
+		local pda = db.actor:item_in_slot(14)
+		if pda then
+			db.actor:move_to_ruck(pda)
+		end
+	    	ActorMenu.get_pda_menu():SetActiveSubdialog("eptTasks") 
+		UnregisterScriptCallback("actor_on_update",actor_on_update)
+	end
+end
+
+function pda_artedex_tab:InitControls()
+	self:SetWndRect(Frect():set(0, 0, 1024, 768))
+	
+	-- Main frame.
+	local xml = CScriptXmlInit()
+	xml:ParseFile("pda_contacts.xml")
+	xml:InitFrame("frame1", self)
+	xml:InitFrame("frame2", self)
+	
+	-- List of contact rows.
+	self.listbox = xml:InitListBox("listbox", self)
+	self.listbox:SetItemHeight(140)
+	self:Register(self.listbox, "listbox")
+	for i = 1, rows_limit do
+		self.listbox:AddExistingItem(ui_artedex_row(self, i, xml))
+	end
+end
+
+ --Update the window, call via engine.
+function pda_artedex_tab:Update()
+	CUIScriptWnd.Update(self)
+end
+
+function pda_artedex_tab:Reset()
+	RegisterScriptCallback("actor_on_update",actor_on_update)
+	for i = 1, column_limit*rows_limit do
+		if (self.artefacts[i]) then
+			self.artefacts[i].name_field:SetText("")
+			self.artefacts[i].icon_field:Show(false)
+		end
+	end
+	
+	for i=1, #unlocked_artefacts do
+		local sec = unlocked_artefacts[i]
+		
+		local artefact_name = ui_item.get_sec_name(sec)
+		artefact_name = artefact_name or "Unknown" 
+		
+		--local icon = utils_xml.get_icons_texture(sec)
+		--icon = icon and icon ~= "" or "ui\\ui_noise"
+		local icon = "ui\\artedex\\" .. sec 
+
+		
+		--self.artefacts[i].icon_field:SetTextureRect(Frect():set( utils_xml.get_item_axis(sec, nil, true) ))
+		self.artefacts[i].icon_field:InitTexture(icon) --"ui\\ui_AC_icon_artefact"
+		self.artefacts[i].icon_field:Show(true)
+		
+		self.artefacts[i].name_field:SetText(artefact_name)
+	end
+end
+
+-- Row constructor.
+class "ui_artedex_row" (CUIListBoxItem)
+function ui_artedex_row:__init(parent, row, xml) super(parent, row, xml)
+	self:GetTextItem():SetText("")
+	self:SetWndSize(vector2():set(740, 140))
+
+	local index = 0
+	local is_widescreen = true
+	local x = is_widescreen and 40 or 55
+	
+	-- Five artefacts are listed on each row.
+	-- Create the components for each info slot.
+	for i = 1, column_limit do
+		-- Calculate the index for each entry.
+		index = i + (column_limit * (row - 1))
+		
+		-- Create the components for each entry.
+		
+		parent.artefacts[index] = {
+			["icon_field"] = self:AddIconField(1), 
+			["name_field"] = self:AddTextField("", 1)
+		}
+		
+		parent.artefacts[index].icon_field:InitTexture("ui\\ui_noise")
+		parent.artefacts[index].icon_field:SetStretchTexture(true)
+		parent.artefacts[index].icon_field:SetWndSize(vector2():set(128, 128))
+		parent.artefacts[index].icon_field:SetWndPos(vector2():set(x, 0))
+		
+		parent.artefacts[index].name_field:SetFont(GetFontLetterica16Russian())
+		parent.artefacts[index].name_field:SetWndSize(vector2():set(120, 20))
+		parent.artefacts[index].name_field:SetWndPos(vector2():set(x, 129))
+		
+		
+		x = x + (is_widescreen and 148 or 152)
+	end
+end
+
+-- Saving and loading unlocked artefacts
+
+local function save_state(mdata) 
+	mdata.unlocked_artefacts = unlocked_artefacts
+	mdata.locked_artefacts = locked_artefacts
+end
+
+local function load_state(mdata) 
+	unlocked_artefacts = mdata.unlocked_artefacts or {}
+	locked_artefacts = mdata.locked_artefacts or {}
+end
+
+function on_game_start()
+	if (USE_MARSHAL) then 
+		RegisterScriptCallback("save_state",save_state)
+		RegisterScriptCallback("load_state",load_state)
+	end
+end

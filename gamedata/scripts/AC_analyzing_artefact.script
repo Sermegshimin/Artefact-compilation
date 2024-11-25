@@ -1,0 +1,41 @@
+local sound = sound_object([[interface\AC_scanning]])
+local ini_device = ini_file("items\\settings\\devices.ltx")
+local device_battery  = ini_device:r_sec_ex("settings","battery","batteries_dead")
+
+function on_artedex_drag_dropped(obj_a, obj_d, slot_from, slot_to)
+	
+    -- Check capability
+    	if not (slot_from == EDDListType.iActorBag and (slot_to == EDDListType.iActorBag or slot_to == EDDListType.iActorSlot)) then
+       		return
+    	end
+	if item_device.drain_device(obj_a, obj_a:section(), 100) then
+	
+		local sec_a = obj_a:section() -- artedex
+		local sec_d = obj_d:section() -- artefact
+		if (sec_a == "artedex") and string.find(sec_d, "_unknown") and SYS_GetParam(0, sec_d, "kind", "") == "i_arty" then
+			
+			actor_effects.play_item_fx(device_battery)
+			ui_inventory.UIInventory:PlaySND(sound)
+
+			sec_to_spawn = string.gsub(sec_d, "_unknown", "")
+			alife_release_id(obj_d:id())
+	
+			local se_art = alife_create_item(sec_to_spawn, db.actor)
+	
+			CreateTimeEvent("wait_for_spawn", se_art.id, 0, function(id) 
+				if get_object_by_id(id) then
+					local tier = artefact_variationizer_152.getRandomArtefactTier()
+					local art = get_object_by_id(id)
+					artefact_variationizer_152.randomizeArtefact(art, tier)
+					return true
+				else
+					return false
+				end
+			end, se_art.id)
+		end
+	end
+end
+
+function on_game_start()
+	RegisterScriptCallback("ActorMenu_on_item_drag_drop",on_artedex_drag_dropped)
+end

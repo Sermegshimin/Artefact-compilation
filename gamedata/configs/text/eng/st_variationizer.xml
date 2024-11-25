@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+
+	<string id="st_variationizer_tier1">
+		<text>Common</text>
+	</string>
+
+	<string id="st_variationizer_tier2">
+		<text>Uncommon</text>
+	</string>
+
+	<string id="st_variationizer_tier3">
+		<text>Rare</text>
+	</string>
+
+	<string id="st_variationizer_tier4">
+		<text>Epic</text>
+	</string>
+
+	<string id="st_variationizer_tier5">
+		<text>Legendary</text>
+	</string>
+
+	<string id="st_variationizer_error">
+		<text>Error generating artefacts: \n %s</text>
+	</string>
+
+	<string id="st_variationizer_success">
+		<text>Artefacts generated, commencing reload</text>
+	</string>
+
+</string_table>

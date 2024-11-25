@@ -1,0 +1,23 @@
+function AC_menu_view(obj)
+	local p = obj:parent()
+	if not (p and p:id() == AC_ID) then return end
+	
+	return game.translate_string("st_ui_inventory_view")
+end
+
+function AC_use_view(obj)
+	local p = obj:parent()
+	if not (p and p:id() == AC_ID) then
+		return
+	end
+				
+	hide_hud_inventory()
+	
+	if (get_console_cmd(1,"g_3d_pda")) then
+		db.actor:make_item_active(obj)
+		ActorMenu.get_pda_menu():SetActiveSubdialog("eptArt")
+	else
+		db.actor:move_to_slot(obj, 14)
+		CreateTimeEvent(0, "delay_2d_pda_draw", 0, function() ActorMenu.get_pda_menu():ShowDialog(true) ActorMenu.get_pda_menu():SetActiveSubdialog("eptArt") return true end )
+	end
+end

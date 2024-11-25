@@ -1,0 +1,34 @@
+;ARTEFACT EGGS (EMBRYOS)
+
+[af_web_t]:af_base
+    $spawn 							                 = "artefacts\thermal_egg"
+    kind			                             = i_arty_junk
+    class				                             = ARTEFACT  	
+    visual							                 = dynamics\artefacts\AC_web.ogf
+    inv_name						                 = st_af_web_t_name
+    inv_name_short					                 = st_af_web_t_name
+    description						                 = st_af_web_t_descr
+    icons_texture                                      = ui\ui_AC_icon_artefact
+    inv_grid_width		                               = 1
+    inv_grid_height		                               = 1
+    inv_grid_x			                               = 7
+    inv_grid_y			                               = 7
+    inv_weight						                 = 0.29
+    cost							                 = 6300
+    jump_height			                             = 0.05
+    ;particles		                                 = artefact\af_gravi_idle
+    det_show_particles		                         = artefact\af_gravi_show
+    det_hide_particles		                         = artefact\af_gravi_hide
+    particles_bone			                         = joint2
+    af_rank				                             = 0
+    lights_enabled                                   = true
+    trail_light_color 		                         = 0.4,0.4,0
+    trail_light_range 		                         = 2.0
+
+    attach_angle_offset		                         = 1.922,1.551,-0.740   
+    attach_position_offset                           = 0.15,0.002,0.25
+    attach_bone_name		                         = bip01_r_hand
+    auto_attach			                             = false
+
+    tier = 1
+

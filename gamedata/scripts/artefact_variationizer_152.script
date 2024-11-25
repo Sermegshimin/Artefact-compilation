@@ -1,0 +1,513 @@
+local enable_debug = false
+local function printf(s, ...)
+    if enable_debug then
+        _G.printf("Variationizer: " .. s, ...)
+    end
+end
+
+local function insert_n_times(t, item, n)
+    local n = n or 1
+    for i = 1, n do
+        table.insert(t, item)
+    end
+end
+
+local function randomWithPrecision(min, max, prec)
+    prec = prec or 5
+    if min > max then
+        max, min = min, max
+    end
+    return round_idp(random_float(min, max), prec)
+end
+
+artefact_chances = {}
+function build_artefact_chances_tables()
+    artefact_chances = (function()
+        local t = {}
+        insert_n_times(t, 1, 20)
+        insert_n_times(t, 2, 13)
+        insert_n_times(t, 3, 7)
+        insert_n_times(t, 4, 4)
+        insert_n_times(t, 5, 2)
+        return t
+    end)()
+end
+build_artefact_chances_tables()
+
+function getRandomArtefactTier()
+    return artefact_chances[math.random(#artefact_chances)]
+end
+
+HitTypeID = {
+    ["burn_immunity"] = 0,
+    ["shock_immunity"] = 1,
+    ["radiation_immunity"] = 3,
+    ["telepatic_immunity"] = 4,
+    ["chemical_burn_immunity"] = 2,
+    ["wound_immunity"] = 5,
+    ["fire_wound_immunity"] = 6,
+    ["explosion_immunity"] = 8,
+    ["strike_immunity"] = 7,
+}
+
+-- Artefacts to randomize when they become online
+local queuedArtefacts = {}
+
+function addToQueuedArtefacts(seObj, data, copyFromData)
+	queuedArtefacts[seObj:name()] = {
+        	id = seObj.id,
+        	name = seObj:name(),
+        	data = data,
+       		copyFromData = copyFromData
+	}
+end
+
+local getsSets = {
+    ["health_restore_speed"] = { "get_artefact_health", "set_artefact_health" },
+    ["radiation_restore_speed"] = { "get_artefact_radiation", "set_artefact_radiation" },
+    ["satiety_restore_speed"] = { "get_artefact_satiety", "set_artefact_satiety" },
+    ["power_restore_speed"] = { "get_artefact_power", "set_artefact_power" },
+    ["bleeding_restore_speed"] = { "get_artefact_bleeding", "set_artefact_bleeding" },
+    ["additional_inventory_weight"] = { "get_artefact_additional_inventory_weight", "set_artefact_additional_inventory_weight" },
+}
+
+-- Get radiation values for containers
+containers = {
+    lead_box = 0.00047,
+    af_iam = 0.00013,
+    af_aac = 0.00025,
+    af_aam = 0.00047,
+}
+
+-- Saved artefacts that are already randomized
+savedArtefacts = {}
+function randomizeArtefact(obj, tier)
+    local sec = obj:section()
+    local values = {} 
+
+    local res = {}
+
+    -- store props as functions first to evaluate later
+    if tier == 1 then
+        res[tier] = {}
+        res[tier].cost = function() return randomWithPrecision(0.85, 1.15) end
+        res[tier].bleeding_restore_speed = function() return randomWithPrecision(0.85, 1.15) end
+        res[tier].health_restore_speed = function() return randomWithPrecision(0.85, 1.15) end
+        res[tier].power_restore_speed = function() return randomWithPrecision(0.85, 1.15) end
+        --res[tier].radiation_restore_speed = function() return randomWithPrecision(0.85, 1.15) end
+        res[tier].satiety_restore_speed = function() return randomWithPrecision(0.85, 1.15) end
+        res[tier].additional_inventory_weight = function() return randomWithPrecision(0.85, 1.15, 2) end
+        res[tier].immunities = (function()
+            local t = {}
+            for k, v in pairs(HitTypeID) do
+                t[k] = function() return randomWithPrecision(0.85, 1.15) end
+            end
+            return t
+        end)()
+    elseif tier == 2 then
+
+        local function pickValue(min, max, prec, neg_min, neg_max, neg_chance, neg_func)
+            if neg_min and neg_max and neg_chance and neg_func and neg_func() < 0 then
+                if neg_min > neg_max then
+                    neg_max, neg_min = neg_min, neg_max
+                end
+                if math.random() < neg_chance then
+                    return randomWithPrecision(neg_min, neg_max, prec)
+                end
+            end
+            return randomWithPrecision(min, max, prec)
+        end
+
+        res[tier] = {}
+        res[tier].cost = function() return pickValue(1.1, 1.2) end
+        res[tier].bleeding_restore_speed = function() return pickValue(1.1, 1.2, 5, 0.8, 0.9, 0.25, function() return SYS_GetParam(2, obj:section(), "bleeding_restore_speed", 0) end) end
+        res[tier].health_restore_speed = function() return pickValue(1.1, 1.2, 5, 0.8, 0.9, 0.25, function() return SYS_GetParam(2, obj:section(), "health_restore_speed", 0) end) end
+        res[tier].power_restore_speed = function() return pickValue(1.1, 1.2, 5, 0.8, 0.9, 0.25, function() return SYS_GetParam(2, obj:section(), "power_restore_speed", 0) end) end
+        --res[tier].radiation_restore_speed = function() return pickValue(0.8, 1) end
+        res[tier].satiety_restore_speed = function() return pickValue(1.1, 1.2, 5, 0.8, 0.9, 0.25, function() return SYS_GetParam(2, obj:section(), "satiety_restore_speed", 0) end) end
+        res[tier].additional_inventory_weight = function() return pickValue(1.1, 1.2, 2, 0.8, 0.9, 0.25, function() return SYS_GetParam(2, obj:section(), "additional_inventory_weight", 0) end) end
+
+        local immunitiesSect = SYS_GetParam(0, sec, "hit_absorbation_sect", sec)
+        res[tier].immunities = (function()
+            local t = {}
+            for k, v in pairs(HitTypeID) do
+                t[k] = function() return pickValue(1.1, 1.2, 5, 0.8, 0.9, 0.25, function() return SYS_GetParam(2, immunitiesSect, k, 0) end) end
+            end
+            return t
+        end)()
+    elseif tier == 3 then
+
+        local function pickValue(min, max, prec, neg_min, neg_max, neg_chance, neg_func)
+            if neg_min and neg_max and neg_chance and neg_func and neg_func() < 0 then
+                if neg_min > neg_max then
+                    neg_max, neg_min = neg_min, neg_max
+                end
+                if math.random() < neg_chance then
+                    return randomWithPrecision(neg_min, neg_max, prec)
+                end
+            end
+            return randomWithPrecision(min, max, prec)
+        end
+
+        res[tier] = {}
+        res[tier].cost = function() return pickValue(1.25, 1.4) end
+        res[tier].bleeding_restore_speed = function() return pickValue(1.25, 1.4, 5, 0.75, 0.9, 0.8, function() return SYS_GetParam(2, obj:section(), "bleeding_restore_speed", 0) end) end
+        res[tier].health_restore_speed = function() return pickValue(1.25, 1.4, 5, 0.75, 0.9, 0.8, function() return SYS_GetParam(2, obj:section(), "health_restore_speed", 0) end) end
+        res[tier].power_restore_speed = function() return pickValue(1.25, 1.4, 5, 0.75, 0.9, 0.8, function() return SYS_GetParam(2, obj:section(), "power_restore_speed", 0) end) end
+        --res[tier].radiation_restore_speed = function() return pickValue(0.45, 0.9) end
+        res[tier].satiety_restore_speed = function() return pickValue(1.25, 1.4, 5, 0.75, 0.9, 0.8, function() return SYS_GetParam(2, obj:section(), "satiety_restore_speed", 0) end) end
+        res[tier].additional_inventory_weight = function() return pickValue(1.25, 1.4, 2, 0.75, 0.9, 0.8, function() return SYS_GetParam(2, obj:section(), "additional_inventory_weight", 0) end) end
+
+        local immunitiesSect = SYS_GetParam(0, sec, "hit_absorbation_sect", sec)
+        res[tier].immunities = (function()
+            local t = {}
+            for k, v in pairs(HitTypeID) do
+                t[k] = function() return pickValue(1.25, 1.4, 5, 0.75, 0.9, 0.8, function() return SYS_GetParam(2, immunitiesSect, k, 0) end) end
+            end
+            return t
+        end)()
+    elseif tier == 4 then
+
+        local reverseLimit = obj:section():find("af_death_lamp") and 2 or 1
+        local reverse = 0
+
+        local function pickValue(min, max, prec, neg_min, neg_max, neg_chance, neg_func, rev_min, rev_max, rev_chance, rev_func)
+            if reverse < reverseLimit and rev_min and rev_max and rev_chance and neg_func and neg_func() < 0 then
+                if rev_min > rev_max then
+                    rev_max, rev_min = rev_min, rev_max
+                end
+                if math.random() < rev_chance then
+                    reverse = reverse + 1
+                    return -randomWithPrecision(rev_min, rev_max, prec)
+                end
+            end
+            if neg_min and neg_max and neg_chance and neg_func and neg_func() < 0 then
+                if neg_min > neg_max then
+                    neg_max, neg_min = neg_min, neg_max
+                end
+                if math.random() < neg_chance then
+                    return randomWithPrecision(neg_min, neg_max, prec)
+                end
+            end
+            return randomWithPrecision(min, max, prec)
+        end
+
+        res[tier] = {}
+        res[tier].cost = function() return pickValue(1.5, 1.75) end
+        res[tier].bleeding_restore_speed = function() return pickValue(1.35, 1.55, 5, 0.3, 0.7, 1, function() return SYS_GetParam(2, obj:section(), "bleeding_restore_speed", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.2 or 0.15) end
+        res[tier].health_restore_speed = function() return pickValue(1.35, 1.55, 5, 0.3, 0.7, 1, function() return SYS_GetParam(2, obj:section(), "health_restore_speed", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.2 or 0.15) end
+        res[tier].power_restore_speed = function() return pickValue(1.35, 1.55, 5, 0.3, 0.7, 1, function() return SYS_GetParam(2, obj:section(), "power_restore_speed", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.2 or 0.15) end
+        --res[tier].radiation_restore_speed = function() return pickValue(0.1, 0.7, 5, _, _, _, function() return -SYS_GetParam(2, obj:section(), "radiation_restore_speed", 0) end, 0.1, 0.2, obj:section():find("af_death_lamp") and 0.2 or 0.15) end
+        res[tier].satiety_restore_speed = function() return pickValue(1.35, 1.55, 5, 0.3, 0.7, 1, function() return SYS_GetParam(2, obj:section(), "satiety_restore_speed", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.2 or 0.15) end
+        res[tier].additional_inventory_weight = function() return pickValue(1.35, 1.55, 2, 0.3, 0.7, 1, function() return SYS_GetParam(2, obj:section(), "additional_inventory_weight", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.2 or 0.15) end
+
+        local immunitiesSect = SYS_GetParam(0, sec, "hit_absorbation_sect", sec)
+        res[tier].immunities = (function()
+            local t = {}
+            for k, v in pairs(HitTypeID) do
+                t[k] = function() return pickValue(1.35, 1.55, 5, 0.3, 0.7, 1, function() return SYS_GetParam(2, immunitiesSect, k, 0) end, 0.35, 0.6, obj:section():find("af_death_lamp") and 0.2 or 0.15) end
+            end
+            return t
+        end)() 
+    elseif tier == 5 then
+        local reverseLimit = obj:section():find("af_death_lamp") and 4 or 3
+        local reverse = 0
+
+        local function pickValue(min, max, prec, neg_min, neg_max, neg_chance, neg_func, rev_min, rev_max, rev_chance, rev_func)
+            if reverse < reverseLimit and rev_min and rev_max and rev_chance and neg_func and neg_func() < 0 then
+                if rev_min > rev_max then
+                    rev_max, rev_min = rev_min, rev_max
+                end
+                if math.random() < rev_chance then
+                    reverse = reverse + 1
+                    return -randomWithPrecision(rev_min, rev_max, prec)
+                end
+            end
+            if neg_min and neg_max and neg_chance and neg_func and neg_func() < 0 then
+                if neg_min > neg_max then
+                    neg_max, neg_min = neg_min, neg_max
+                end
+                if math.random() < neg_chance then
+                    return math.max(0, randomWithPrecision(neg_min, neg_max, prec))
+                end
+            end
+            return randomWithPrecision(min, max, prec)
+        end
+
+        res[tier] = {}
+        res[tier].cost = function() return pickValue(1.8, 2.5) end
+        res[tier].bleeding_restore_speed = function() return pickValue(1.6, 2, 5, -0.1, 0.2, 1, function() return SYS_GetParam(2, obj:section(), "bleeding_restore_speed", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.3 or 0.15) end
+        res[tier].health_restore_speed = function() return pickValue(1.6, 2, 5, -0.1, 0.2, 1, function() return SYS_GetParam(2, obj:section(), "health_restore_speed", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.3 or 0.15) end
+        res[tier].power_restore_speed = function() return pickValue(1.6, 2, 5, -0.1, 0.2, 1, function() return SYS_GetParam(2, obj:section(), "power_restore_speed", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.3 or 0.15) end
+        --res[tier].radiation_restore_speed = function() return pickValue(-0.15, 0.25, 5, _, _, _, function() return -SYS_GetParam(2, obj:section(), "radiation_restore_speed", 0) end, 0.2, 0.3, obj:section():find("af_death_lamp") and 0.3 or 0.15) end
+        res[tier].satiety_restore_speed = function() return pickValue(1.6, 2, 5, -0.1, 0.2, 1, function() return SYS_GetParam(2, obj:section(), "satiety_restore_speed", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.3 or 0.15) end
+        res[tier].additional_inventory_weight = function() return pickValue(1.6, 2, 2, -0.1, 0.2, 1, function() return SYS_GetParam(2, obj:section(), "additional_inventory_weight", 0) end, 0.25, 0.5, obj:section():find("af_death_lamp") and 0.3 or 0.15) end
+
+        local immunitiesSect = SYS_GetParam(0, sec, "hit_absorbation_sect", sec)
+        res[tier].immunities = (function()
+            local t = {}
+            for k, v in pairs(HitTypeID) do
+                t[k] = function() return pickValue(1.6, 2, 5, -0.1, 0.2, 1, function() return SYS_GetParam(2, immunitiesSect, k, 0) end, 0.5, 1, obj:section():find("af_death_lamp") and 0.7 or 0.25) end
+            end
+            return t
+        end)() 
+    end
+    local props = res[tier]
+
+    -- evaluate functions in table with random walk
+    for k, v in pairs(props) do
+        if k == "immunities" then
+            for k1, v1 in pairs(v) do
+                props[k][k1] = v1()
+                printf("%s:: generated immunity %s: %s", obj:name(), k1, props[k][k1])
+            end
+        else
+            props[k] = v()
+            printf("%s:: generated property %s: %s", obj:name(), k, props[k])
+        end
+    end
+
+    for field, fieldSetter in pairs(getsSets) do
+        if obj[fieldSetter[2]] then
+            printf("%s has getter %s and fieldSetter %s", obj:name(), field, fieldSetter[2])
+
+            if props[field] then
+                local initVal = SYS_GetParam(2, sec, field, 0)
+                local val = initVal * props[field]
+
+                -- limit radiation to all artefacts but death lamp
+                if field == "radiation_restore_speed" and not sec:find("af_death_lamp") then
+                    val = math.min(val, 0.00047)
+                end
+
+                printf("%s:: %s: %s, %s: %s", obj:name(), field, initVal, fieldSetter[2], val)
+                values[field] = val
+                obj[fieldSetter[2]](obj, val)
+            end
+
+        end
+    end
+    
+    for cont, rad in pairs(containers) do
+        values["radiation_restore_speed_" .. cont] = math.max(0, (values.radiation_restore_speed or 0) - rad)
+    end
+
+    values.cost = props.cost
+    values.immunities = {}
+
+    local immunitiesSect = SYS_GetParam(0, sec, "hit_absorbation_sect", sec)
+    for immunityField, immunityId in pairs(HitTypeID) do
+        if props.immunities[immunityField] then
+            local initVal = SYS_GetParam(2, immunitiesSect, immunityField, 0)
+            local val = math.min(1, initVal * props.immunities[immunityField])
+            printf("%s has immunity %s: %s", obj:name(), immunityField, initVal)
+            printf("%s:: %s: %s, %s: %s", obj:name(), immunityField, initVal, "set_artefact_immunity " .. immunityId, val)
+            values.immunities[immunityField] = val
+            obj:set_artefact_immunity(immunityId, val)
+        end
+    end
+
+    savedArtefacts[obj:name()] = {
+        id = obj:id(),
+        name = obj:name(),
+        tier = tier,
+        values = values
+    }
+end
+
+-- function to copy data when artefact is put to container and back
+function copyFromData(obj, data)
+
+    -- if artefact is put into lead box - just reduce rads
+    if data.values.container == "lead_box" then
+        printf("Copy: %s in lead_box, rad %s", obj:name(), data.values["radiation_restore_speed_" .. data.values.container])
+
+        -- Lead boxes aren't artefacts, can't set radiation
+        -- obj:set_artefact_radiation(data.values["radiation_restore_speed_" .. data.values.container])
+        
+        savedArtefacts[obj:name()] = {
+            id = obj:id(),
+            name = obj:name(),
+            tier = data.tier,
+            values = data.values
+        }
+        return
+    end
+
+    local sec = obj:section()
+
+    for field, fieldSetter in pairs(getsSets) do
+        if obj[fieldSetter[2]] then
+            printf("Copy: %s has getter %s and fieldSetter %s", obj:name(), field, fieldSetter[2])
+            if data.values[field] then
+                local initVal = SYS_GetParam(2, sec, field, 0)
+                local val = data.values[field]
+                printf("Copy: %s:: %s: %s, %s: %s", obj:name(), field, initVal, fieldSetter[2], val)
+                obj[fieldSetter[2]](obj, val)
+            end
+        end
+    end
+    
+    -- Set rads based on container arty has been put
+    if data.values.container and containers[data.values.container] and data.values["radiation_restore_speed_" .. data.values.container] then
+        printf("Copy: %s in container %s, rad %s", obj:name(), data.values.container, data.values["radiation_restore_speed_" .. data.values.container])
+        obj:set_artefact_radiation(data.values["radiation_restore_speed_" .. data.values.container])
+    end
+
+    local immunitiesSect = SYS_GetParam(0, sec, "hit_absorbation_sect", sec)
+    for immunityField, immunityId in pairs(HitTypeID) do
+        if data.values.immunities[immunityField] then
+            local initVal = SYS_GetParam(2, immunitiesSect, immunityField, 0)
+            local val = data.values.immunities[immunityField]
+            printf("Copy: %s has immunity %s: %s", obj:name(), immunityField, initVal)
+            printf("Copy: %s:: %s: %s, %s: %s", obj:name(), immunityField, initVal, "set_artefact_immunity " .. immunityId, val)
+            obj:set_artefact_immunity(immunityId, val)
+        end
+    end
+
+    savedArtefacts[obj:name()] = {
+        id = obj:id(),
+        name = obj:name(),
+        tier = data.tier,
+        values = data.values
+    }
+end
+
+-- Patches
+create_arty = alife_create_item
+bind_anomaly_zone.alife_create_item = function(section, obj, t)
+    local obj = create_arty(section, obj, t)
+    if obj then
+        printf("spawning randomized artefact %s", obj:name())
+        addToQueuedArtefacts(obj)
+    end
+    return obj
+end
+
+-- DAO
+if drx_da_main and drx_da_main.spawn_artefact_on_smart then
+    spawn_artefact_on_smart = drx_da_main.spawn_artefact_on_smart
+    drx_da_main.spawn_artefact_on_smart = function(level_file, smart_name, picked_artefact, level_name)
+        local resId = spawn_artefact_on_smart(level_file, smart_name, picked_artefact, level_name)
+        local seObj = resId and alife_object(resId)
+        if seObj then
+            printf("spawning randomized artefact %s in DAO field %s", seObj:name(), smart_name)
+            addToQueuedArtefacts(seObj)
+        end
+        return resId
+    end
+end
+
+function do_patches()
+    build_artefact_chances_tables()
+end
+
+function actor_on_first_update()
+    local m_data = alife_storage_manager.get_state()
+    savedArtefacts = m_data.artefact_variationizer_saved_artefacts or {}
+    queuedArtefacts = m_data.artefact_variationizer_queued_artefacts or {}
+
+    local function isValidArtefact(k, v)
+        if not v.id then return false end
+
+        local seObj = alife_object(v.id)
+        if not seObj then return false end
+        if seObj:name() ~= k then return false end
+
+        return true
+    end
+
+    for k, v in pairs(savedArtefacts) do
+        if not isValidArtefact(k, v) then
+            savedArtefacts[k] = nil
+        end
+    end
+end
+
+function actor_on_update()
+    for k, v in pairs(queuedArtefacts) do
+        local obj = level.object_by_id(v.id)
+        if obj then
+            local n = obj:name()
+            CreateTimeEvent("queuedArtefacts", n, 0.08, function(id, v, n)
+                local obj = level.object_by_id(id)
+                if obj then
+                    if obj:name() == k then
+                        if v.data and v.copyFromData then
+                            printf("%s in randomize queue, copy data from %s", obj:name(), v.data.name)
+                            copyFromData(obj, v.data)
+                        else
+                            local tier = getRandomArtefactTier()
+                            printf("%s in randomize queue, randomize with tier %s", obj:name(), tier)
+                            randomizeArtefact(obj, tier)
+                        end
+                    else
+                        printf("%s is not valid to randomize, ignore", obj:name())
+                    end
+                    return true
+                else
+                    -- printf("%s is not available to randomize, ignore", n)
+                end
+            end, v.id, v, n)
+            queuedArtefacts[k] = nil
+        end
+    end
+end
+
+function on_get_item_cost(kind, obj, profile, calculated_cost, ret)
+    if savedArtefacts[obj:name()] then
+        ret.new_cost = math.ceil((ret.new_cost or calculated_cost) * savedArtefacts[obj:name()].values.cost)
+    end
+end
+
+function save_state(m_data)
+    m_data.artefact_variationizer_saved_artefacts = savedArtefacts
+    m_data.artefact_variationizer_queued_artefacts = queuedArtefacts
+end
+
+function artefact_in_container(newSeObj, artyObj, contObj)
+    if savedArtefacts[artyObj:name()] then
+        local data = savedArtefacts[artyObj:name()]
+        data.values.container = contObj:section()
+        addToQueuedArtefacts(newSeObj, data, true)
+        savedArtefacts[artyObj:name()] = nil
+    end
+end
+
+function artefact_out_container(newSeArtyObj, newSeContObj, prevObj)
+    if savedArtefacts[prevObj:name()] then
+        local data = savedArtefacts[prevObj:name()]
+        data.values.container = nil
+        addToQueuedArtefacts(newSeArtyObj, data, true)
+        savedArtefacts[prevObj:name()] = nil
+    end
+end
+
+function on_key_press(dik)
+    if dik == DIK_keys.DIK_O then
+        local obj = db.actor:item_on_belt(0)
+        if obj then
+            -- printf("%s", obj:get_artefact_additional_inventory_weight())
+            addToQueuedArtefacts(alife_object(obj:id()))
+        end
+    end
+end
+
+-- Reroll artefact if config is changed
+function artefact_on_first_update(obj, binder, configChanged)
+    if configChanged and savedArtefacts[obj:name()] then
+        randomizeArtefact(obj, savedArtefacts[obj:name()].tier)
+    end
+end
+
+function on_game_start()
+    -- RegisterScriptCallback("on_key_press", on_key_press)
+    RegisterScriptCallback("artefact_on_first_update", artefact_on_first_update)
+    RegisterScriptCallback("artefact_in_container", artefact_in_container)
+    RegisterScriptCallback("artefact_out_container", artefact_out_container)
+    RegisterScriptCallback("actor_on_update", actor_on_update)
+    RegisterScriptCallback("actor_on_first_update", actor_on_first_update)
+    RegisterScriptCallback("save_state", save_state)
+    RegisterScriptCallback("on_get_item_cost", on_get_item_cost)
+    do_patches()
+end

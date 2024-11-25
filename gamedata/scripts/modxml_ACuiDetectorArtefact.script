@@ -1,0 +1,14 @@
+function on_xml_read()
+    RegisterScriptCallback("on_xml_read", function(xml_file_name, xml_obj)
+       
+        local xml_to_change = [[ui\ui_detector_artefact.xml]]
+
+        if xml_file_name == xml_to_change then
+            local my_new_scope = 
+[[
+
+]]
+	    xml_obj:insertFromXMLString(my_new_scope)
+        end
+    end)
+end

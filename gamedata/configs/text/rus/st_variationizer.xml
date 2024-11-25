@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+
+	<string id="st_variationizer_tier1">
+		<text>Обычный</text>
+	</string>
+
+	<string id="st_variationizer_tier2">
+		<text>Необычный</text>
+	</string>
+
+	<string id="st_variationizer_tier3">
+		<text>Редкий</text>
+	</string>
+
+	<string id="st_variationizer_tier4">
+		<text>Эпический</text>
+	</string>
+
+	<string id="st_variationizer_tier5">
+		<text>Легендарный</text>
+	</string>
+
+	<string id="st_variationizer_error">
+		<text>Ошибка генерации артефактов: \n %s</text>
+	</string>
+
+	<string id="st_variationizer_success">
+		<text>Артефакты сгенерированы, перезагружаемся</text>
+	</string>
+
+</string_table>

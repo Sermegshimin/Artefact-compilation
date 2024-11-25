@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+	
+	<string id="ui_mcm_artefact_variationizer_title">
+		<text>Вариации артефактов</text>
+	</string>
+	<string id="ui_mcm_menu_artefact_variationizer">
+		<text>Вариации артефактов</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_debug_mode">
+		<text>Дебаг</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_generate">
+		<text>Сгенерировать вариации</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_generate_desc">
+		<text>Вы должны быть в игре, чтобы использовать эту опцию! \n При нажатии на эту опцию и возвращении в игру, новые варианты артефактов будут сгенерированы и сохранены в файл. После успешного сохранения игра будет автоматически перезагружена через 3 секунды, чтобы применить эти изменения. Артефакты, которые уже были у вас в инвентаре, также будут рандомизированы. Вы можете использовать эту опцию для создания вариаций для любого мода, который влияет на статы артефактов.</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_delete_artys">
+		<text>Удалить вариативные артефакты</text>
+	</string>
+	<string id="ui_mcm_artefact_variationizer_delete_artys_desc">
+		<text>Эта опция удалит все вариативные артефакты из зоны. Эта опция предназначена для безопасного удаления мода</text>
+	</string>
+	
+	
+</string_table>

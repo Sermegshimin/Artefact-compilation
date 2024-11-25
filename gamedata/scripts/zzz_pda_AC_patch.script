@@ -1,0 +1,8 @@
+local original_set_active_subdialog = pda.set_active_subdialog
+    pda.set_active_subdialog = function (section)
+        if (section == "eptArt") then
+            return ui_pda_artedex_tab.get_ui()
+        else
+            return original_set_active_subdialog(section)
+        end
+    end

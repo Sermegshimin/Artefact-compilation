@@ -1,0 +1,38 @@
+function campfire_go_on_pin(cf)
+	local cf = cf or bind_campfire.get_nearby_campfire(bind_campfire.dist_cf,true)
+	if (not cf) then
+		return
+	end
+	
+	if (cf:is_on()) then
+		return
+	end
+	cf:turn_on()	
+end
+
+function use_campfire_pin(actor,zone,p)
+	local pos = db.actor:position()
+	for id,binder in pairs(bind_campfire.campfires_all) do 
+		if (binder and binder.campfire) then
+			if (pos:distance_to_sqr(binder.object:position()) <= 2) then
+				if (binder.campfire:is_on()) then 
+					bind_campfire.campfire_go_off(binder.campfire)
+					--binder.campfire:turn_off()
+				else
+					local pin = db.actor:object("af_pin")
+					local obj_item = db.actor:object("matches") or db.actor:object("box_matches")
+					if pin then	
+						campfire_go_on_pin(binder.campfire)
+					else
+						if obj_item then
+							bind_campfire.actor_on_item_use(obj_item, nil, binder.campfire)
+						else
+							actor_menu.set_msg(1, game.translate_string("st_ui_campfire_prereq"),3)
+						end
+					end
+				end
+			end
+		end 
+	end 
+end
+bind_campfire.use_campfire = use_campfire_pin
